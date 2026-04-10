@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\htl_pv_api\Service;
 
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\htl_core\Trait\HtlLoggerTrait;
 use Drupal\htl_pv_api\Model\PVSample;
 
 /**
@@ -11,14 +15,18 @@ use Drupal\htl_pv_api\Model\PVSample;
  */
 class PVClient
 {
-    protected string $baseUrl;
-    protected PVFieldMap $fieldMap;
+    use HtlLoggerTrait;
 
-    public function __construct(string $baseUrl, ?PVFieldMap $fieldMap = null)
-    {
-        $this->baseUrl = rtrim($baseUrl, "/");
-        $this->fieldMap =
-            $fieldMap ?? new PVFieldMap(\Drupal::service("config.factory"));
+    protected string $baseUrl;
+
+    public function __construct(
+        ConfigFactoryInterface $configFactory,
+        protected readonly PVFieldMap $fieldMap,
+    ) {
+        $this->baseUrl = rtrim(
+            $configFactory->get('htl_pv_api.settings')->get('api_base_url') ?? 'http://localhost:4010',
+            '/',
+        );
     }
 
     /**
@@ -71,7 +79,8 @@ class PVClient
                 $this->baseUrl = $base;
                 return $body;
             } catch (\Throwable $e) {
-                \Drupal::logger("htl_pv_api")->notice(
+                $this->htlNotice(
+                    "htl_pv_api",
                     "PVClient: tried @url – @msg",
                     ["@url" => $url, "@msg" => $e->getMessage()],
                 );

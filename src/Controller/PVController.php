@@ -1,30 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\htl_pv_api\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Url;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Drupal\htl_core\Trait\HtlLoggerTrait;
 use Drupal\htl_pv_api\Model\PVSample;
 use Drupal\htl_pv_api\Service\PVClient;
+use Drupal\htl_pv_api\Service\PVFieldMap;
 use Drupal\htl_pv_api\Service\PVStore;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 /**
  * Full PV dashboard page and JSON fetch endpoint.
  */
 class PVController extends ControllerBase
 {
-    private function client(): PVClient
-    {
-        $url =
-            \Drupal::config("htl_pv_api.settings")->get("api_base_url") ??
-            "http://localhost:4010";
-        return new PVClient($url);
-    }
+    use HtlLoggerTrait;
 
-    private function store(): PVStore
+    public function __construct(
+        private readonly PVClient $pvClient,
+        private readonly PVStore $pvStore,
+        private readonly PVFieldMap $fieldMap,
+    ) {}
+
+    public static function create(ContainerInterface $container): static
     {
-        return new PVStore();
+        return new static(
+            $container->get('htl_pv_api.client'),
+            $container->get('htl_pv_api.store'),
+            $container->get('htl_pv_api.field_map'),
+        );
     }
 
     /**
@@ -32,20 +41,17 @@ class PVController extends ControllerBase
      */
     public function dashboard(): array
     {
-        $client = $this->client();
-        $store = $this->store();
-        $cfg = \Drupal::config("htl_pv_api.settings");
-        $fieldMap = \Drupal::service("htl_pv_api.field_map");
+        $cfg = $this->config("htl_pv_api.settings");
         $force = (bool) \Drupal::request()->query->get("refresh");
 
         // --- Live data -------------------------------------------------------
         $live = new PVSample();
 
         try {
-            $live = $client->fetchLive();
-            $store->upsert($live);
+            $live = $this->pvClient->fetchLive();
+            $this->pvStore->upsert($live);
         } catch (\Throwable $e) {
-            $live = $store->latest() ?? new PVSample();
+            $live = $this->pvStore->latest() ?? new PVSample();
         }
 
         // --- History (last 7 days) from database ----------------------------
@@ -53,7 +59,7 @@ class PVController extends ControllerBase
         $now = new \DateTime("now", $tz);
         $from = (clone $now)->modify("-7 days")->setTime(0, 0, 0);
 
-        $history = $store->history($from->getTimestamp(), $now->getTimestamp());
+        $history = $this->pvStore->history($from->getTimestamp(), $now->getTimestamp());
 
         // --- 15-min slot aggregation -----------------------------------------
         $intervalMin = max(
@@ -123,7 +129,7 @@ class PVController extends ControllerBase
 
         // --- Calculate summaries from stored data -----------------------------
         $todayFrom = (clone $now)->setTime(0, 0, 0);
-        $todayHistory = $store->history(
+        $todayHistory = $this->pvStore->history(
             $todayFrom->getTimestamp(),
             $now->getTimestamp(),
         );
@@ -165,7 +171,7 @@ class PVController extends ControllerBase
         $render = [
             "#theme" => "pv_dashboard",
             "#live" => $live,
-            "#field_map" => $fieldMap->getFieldDefinitions(),
+            "#field_map" => $this->fieldMap->getFieldDefinitions(),
             "#today_kwh" => $todayKwh,
             "#today_consumed_kwh" => $todayConsumed,
             "#today_exported_kwh" => $todayExported,
@@ -198,7 +204,7 @@ class PVController extends ControllerBase
                         "chart_max_w" =>
                             (int) ($cfg->get("chart_max_w") ?? 10000),
                         "chart_interval_minutes" => $intervalMin,
-                        "field_map" => $fieldMap->getFieldDefinitions(),
+                        "field_map" => $this->fieldMap->getFieldDefinitions(),
                     ],
                 ],
             ],
@@ -217,10 +223,8 @@ class PVController extends ControllerBase
     public function fetch(): JsonResponse
     {
         try {
-            $client = $this->client();
-            $store = $this->store();
-            $live = $client->fetchLive();
-            $store->upsert($live);
+            $live = $this->pvClient->fetchLive();
+            $this->pvStore->upsert($live);
 
             return new JsonResponse([
                 "ok" => true,
@@ -246,7 +250,6 @@ class PVController extends ControllerBase
      */
     public function cron(string $key): JsonResponse
     {
-        // Verify the security key
         $validKey = \Drupal::state()->get("htl_pv_api.cron_key", "");
         if (empty($validKey) || $key !== $validKey) {
             return new JsonResponse(
@@ -257,11 +260,10 @@ class PVController extends ControllerBase
 
         try {
             $state = \Drupal::state();
-            $cfg = \Drupal::config("htl_pv_api.settings");
+            $cfg = $this->config("htl_pv_api.settings");
             $last = (int) $state->get("htl_pv_api.cron_last_run", 0);
             $now = time();
 
-            // Check if cron is enabled
             if (!(bool) ($cfg->get("cron_enabled") ?? true)) {
                 return new JsonResponse([
                     "ok" => false,
@@ -269,7 +271,6 @@ class PVController extends ControllerBase
                 ]);
             }
 
-            // Check if enough time has passed
             $interval = max(10, (int) ($cfg->get("cron_interval") ?? 60));
             if ($now - $last < $interval) {
                 return new JsonResponse([
@@ -279,15 +280,11 @@ class PVController extends ControllerBase
                 ]);
             }
 
-            // Fetch and store data
-            $client = $this->client();
-            $store = $this->store();
-            $live = $client->fetchLive();
-            $store->upsert($live);
+            $live = $this->pvClient->fetchLive();
+            $this->pvStore->upsert($live);
 
             $state->set("htl_pv_api.cron_last_run", $now);
 
-            // Retention cleanup
             $retention_days = (int) ($cfg->get("data_retention_days") ?? 30);
             $deleted = 0;
             if ($retention_days > 0) {
@@ -295,7 +292,7 @@ class PVController extends ControllerBase
                     "Y-m-d H:i:s",
                     strtotime("-{$retention_days} days", $now),
                 );
-                $deleted = $store->deleteOlderThan($cutoff);
+                $deleted = $this->pvStore->deleteOlderThan($cutoff);
             }
 
             return new JsonResponse([
@@ -305,7 +302,8 @@ class PVController extends ControllerBase
                 "deleted" => $deleted,
             ]);
         } catch (\Throwable $e) {
-            \Drupal::logger("htl_pv_api")->error(
+            $this->htlError(
+                "htl_pv_api",
                 "Dedicated cron failed: @msg",
                 ["@msg" => $e->getMessage()],
             );
@@ -333,21 +331,18 @@ class PVController extends ControllerBase
             $date = $request->query->get("date", date("Y-m-d"));
 
             $tz = new \DateTimeZone("Europe/Vienna"); // TODO: Config
-            $store = $this->store();
-            $cfg = \Drupal::config("htl_pv_api.settings");
+            $cfg = $this->config("htl_pv_api.settings");
             $intervalMin = max(
                 5,
                 min(15, (int) ($cfg->get("chart_interval_minutes") ?? 15)),
             );
 
-            // Parse the requested date
             try {
                 $requestedDate = new \DateTime($date, $tz);
             } catch (\Throwable $e) {
                 $requestedDate = new \DateTime("now", $tz);
             }
 
-            // Determine time range based on period
             switch ($period) {
                 case "week":
                     $from = (clone $requestedDate)
@@ -356,7 +351,7 @@ class PVController extends ControllerBase
                     $to = (clone $from)->modify("+6 days")->setTime(23, 59, 59);
                     $label =
                         $from->format("d.m.Y") . " - " . $to->format("d.m.Y");
-                    $targetPoints = 96; // ~14 pro Tag
+                    $targetPoints = 96;
                     break;
 
                 case "month":
@@ -367,7 +362,7 @@ class PVController extends ControllerBase
                         ->modify("last day of this month")
                         ->setTime(23, 59, 59);
                     $label = $from->format("F Y");
-                    $targetPoints = 96; // ~3 pro Tag
+                    $targetPoints = 96;
                     break;
 
                 case "year":
@@ -378,7 +373,7 @@ class PVController extends ControllerBase
                         ->setDate((int) $requestedDate->format("Y"), 12, 31)
                         ->setTime(23, 59, 59);
                     $label = $from->format("Y");
-                    $targetPoints = 96; // ~8 pro Monat
+                    $targetPoints = 96;
                     break;
 
                 case "day":
@@ -390,8 +385,7 @@ class PVController extends ControllerBase
                     break;
             }
 
-            // Fetch raw data
-            $samples = $store->history(
+            $samples = $this->pvStore->history(
                 $from->getTimestamp(),
                 $to->getTimestamp(),
             );
@@ -409,7 +403,6 @@ class PVController extends ControllerBase
                 ]);
             }
 
-            // Aggregate data
             $aggregated = $this->aggregateChartData(
                 $samples,
                 $from,
@@ -420,7 +413,6 @@ class PVController extends ControllerBase
                 $intervalMin,
             );
 
-            // Find peak
             $peak = 0;
             foreach ($aggregated["data"] as $value) {
                 if ($value !== null && $value > $peak) {
@@ -439,7 +431,7 @@ class PVController extends ControllerBase
                 "count" => count($samples),
             ]);
         } catch (\Throwable $e) {
-            \Drupal::logger("htl_pv_api")->error("Chart data failed: @msg", [
+            $this->htlError("htl_pv_api", "Chart data failed: @msg", [
                 "@msg" => $e->getMessage(),
             ]);
             return new JsonResponse(
@@ -464,7 +456,6 @@ class PVController extends ControllerBase
         $totalSeconds = $to->getTimestamp() - $from->getTimestamp();
         $bucketSize = (int) ceil($totalSeconds / $targetPoints);
 
-        // Create buckets
         $buckets = [];
         for ($i = 0; $i < $targetPoints; $i++) {
             $buckets[$i] = [
@@ -473,7 +464,6 @@ class PVController extends ControllerBase
             ];
         }
 
-        // Fill buckets with samples
         foreach ($samples as $sample) {
             if (!$sample->sampled_at || $sample->power_w === null) {
                 continue;
@@ -489,12 +479,10 @@ class PVController extends ControllerBase
             }
         }
 
-        // Generate labels and data
         $labels = [];
         $data = [];
 
         foreach ($buckets as $i => $bucket) {
-            // Calculate average for this bucket
             if (!empty($bucket["values"])) {
                 $data[] = round(
                     array_sum($bucket["values"]) / count($bucket["values"]),
@@ -504,12 +492,10 @@ class PVController extends ControllerBase
                 $data[] = null;
             }
 
-            // Generate label
             $dt = new \DateTime("@" . $bucket["time"])->setTimezone($tz);
 
             switch ($period) {
                 case "day":
-                    // Show hour label once per hour — every (60 / intervalMin) slots
                     $slotsPerHour = (int) max(1, round(60 / $intervalMin));
                     if ($i % $slotsPerHour === 0) {
                         $labels[] = $dt->format("H:i");
@@ -519,7 +505,6 @@ class PVController extends ControllerBase
                     break;
 
                 case "week":
-                    // Show day labels
                     if ($i % 14 === 0) {
                         $labels[] = $dt->format("D d.m");
                     } else {
@@ -528,7 +513,6 @@ class PVController extends ControllerBase
                     break;
 
                 case "month":
-                    // Show day-of-month labels
                     if ($i % 3 === 0) {
                         $labels[] = $dt->format("d.");
                     } else {
@@ -537,7 +521,6 @@ class PVController extends ControllerBase
                     break;
 
                 case "year":
-                    // Show month labels
                     if ($i % 8 === 0) {
                         $labels[] = $dt->format("M");
                     } else {

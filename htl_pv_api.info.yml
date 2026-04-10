@@ -1,4 +1,4 @@
-name: "HTL PV Daschboard"
+name: "HTL PV Dashboard"
 type: module
 description: "Provides a dashboard for the HTL PV project."
 package: HTL
@@ -6,7 +6,4 @@ core_version_requirement: ^10 || ^11
 version: 1.0.0
 
 dependencies:
-    - htl_core:htl_core
-
-#dependencies:
-#  - drupal:media
+  - htl_core:htl_core

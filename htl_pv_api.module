@@ -5,9 +5,6 @@
  * Primary module hooks for htl_pv_api module.
  */
 
-use Drupal\htl_pv_api\Service\PVClient;
-use Drupal\htl_pv_api\Service\PVStore;
-
 /**
  * Implements hook_theme().
  */
@@ -50,9 +47,6 @@ function htl_pv_api_theme($existing, $type, $theme, $path) {
  * Wird bei jedem Drupal Cron-Lauf ausgeführt.
  * Prüft das konfigurierte Intervall und holt nur dann neue Daten,
  * wenn genug Zeit seit dem letzten Abruf vergangen ist.
- *
- * Beispiel: Bei Intervall 60 Sekunden und Drupal Cron läuft jede Minute,
- * wird jede Minute ein neues Sample geholt.
  */
 function htl_pv_api_cron() {
   $lock      = \Drupal::lock();
@@ -72,19 +66,16 @@ function htl_pv_api_cron() {
       return;
     }
 
-    // Prüfe, ob das Intervall abgelaufen ist
     $min_interval = max(10, (int) ($cfg->get('cron_interval') ?? 60));
     if ($now - $last < $min_interval) {
-      return; // Noch nicht genug Zeit vergangen
+      return;
     }
 
-    $client = new PVClient(
-      $cfg->get('api_base_url') ?? 'http://localhost:4010',
-      \Drupal::service('htl_pv_api.field_map'),
-    );
-    $store  = new PVStore();
+    /** @var \Drupal\htl_pv_api\Service\PVClient $client */
+    $client = \Drupal::service('htl_pv_api.client');
+    /** @var \Drupal\htl_pv_api\Service\PVStore $store */
+    $store = \Drupal::service('htl_pv_api.store');
 
-    // Live sample.
     try {
       $live = $client->fetchLive();
       $store->upsert($live);
@@ -95,7 +86,6 @@ function htl_pv_api_cron() {
 
     $state->set('htl_pv_api.cron_last_run', $now);
 
-    // Retention cleanup.
     $retention_days = (int) ($cfg->get('data_retention_days') ?? 30);
     if ($retention_days > 0) {
       try {

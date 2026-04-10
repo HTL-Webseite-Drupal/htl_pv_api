@@ -1,27 +1,29 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\htl_pv_api\Form;
 
-use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\htl_core\Form\HtlSettingsFormBase;
 
-class ProviderSettingsForm extends ConfigFormBase
+class ProviderSettingsForm extends HtlSettingsFormBase
 {
     public function getFormId(): string
     {
         return "htl_pv_api_provider_settings";
     }
 
-    protected function getEditableConfigNames(): array
+    protected function getConfigName(): string
     {
-        return ["htl_pv_api.settings"];
+        return "htl_pv_api.settings";
     }
 
-    public function buildForm(
+    protected function buildSettingsForm(
         array $form,
         FormStateInterface $form_state,
     ): array {
-        $config = $this->config("htl_pv_api.settings");
+        $config = $this->settings();
 
         // --- Status section --------------------------------------------------
         $sampleCount = \Drupal::database()
@@ -121,7 +123,7 @@ class ProviderSettingsForm extends ConfigFormBase
             ),
         ];
 
-        // Global UI defaults.
+        // --- Global UI defaults ----------------------------------------------
         $ui = $config->get("ui") ?: [];
         $form["ui"] = [
             "#type" => "details",
@@ -202,7 +204,7 @@ class ProviderSettingsForm extends ConfigFormBase
             "#default_value" => (bool) ($ui["show_timestamp"] ?? true),
         ];
 
-        return parent::buildForm($form, $form_state) + $form;
+        return $form;
     }
 
     /**
@@ -212,9 +214,7 @@ class ProviderSettingsForm extends ConfigFormBase
         array &$form,
         FormStateInterface $form_state,
     ): void {
-        $providerId = (string) $this->config("htl_pv_api.settings")->get(
-            "provider",
-        );
+        $providerId = (string) $this->settings()->get("provider");
         try {
             /** @var \Drupal\htl_pv_api\Service\PVDataProviderInterface $provider */
             $provider = \Drupal::service("htl_pv_api.provider");
@@ -255,13 +255,12 @@ class ProviderSettingsForm extends ConfigFormBase
         }
     }
 
-    public function submitForm(
+    protected function submitSettingsForm(
         array &$form,
         FormStateInterface $form_state,
     ): void {
         $ui = $form_state->getValue("ui") ?: [];
-        $this->configFactory
-            ->getEditable("htl_pv_api.settings")
+        $this->settings()
             ->set("provider", "prism")
             ->set("prism_base_url", $form_state->getValue("prism_base_url"))
             ->set("poll_interval", (int) $form_state->getValue("poll_interval"))
@@ -285,7 +284,5 @@ class ProviderSettingsForm extends ConfigFormBase
                 "show_sparkline" => !empty($ui["show_sparkline"]),
             ])
             ->save();
-
-        parent::submitForm($form, $form_state);
     }
 }

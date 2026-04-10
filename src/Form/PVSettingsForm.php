@@ -1,30 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\htl_pv_api\Form;
 
-use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\htl_pv_api\Service\PVClient;
-use Drupal\htl_pv_api\Service\PVStore;
+use Drupal\htl_core\Form\HtlSettingsFormBase;
 
-class PVSettingsForm extends ConfigFormBase
+class PVSettingsForm extends HtlSettingsFormBase
 {
     public function getFormId(): string
     {
         return "htl_pv_api_settings";
     }
 
-    protected function getEditableConfigNames(): array
+    protected function getConfigName(): string
     {
-        return ["htl_pv_api.settings"];
+        return "htl_pv_api.settings";
     }
 
-    public function buildForm(
+    protected function buildSettingsForm(
         array $form,
         FormStateInterface $form_state,
     ): array {
-        $cfg = $this->config("htl_pv_api.settings");
-        $store = new PVStore();
+        $cfg = $this->settings();
+        $store = \Drupal::service('htl_pv_api.store');
         $last = (int) \Drupal::state()->get("htl_pv_api.cron_last_run", 0);
 
         // --- Status -----------------------------------------------------------
@@ -156,7 +156,7 @@ class PVSettingsForm extends ConfigFormBase
             ];
         }
 
-        return parent::buildForm($form, $form_state);
+        return $form;
     }
 
     /**
@@ -166,11 +166,10 @@ class PVSettingsForm extends ConfigFormBase
         array &$form,
         FormStateInterface $form_state,
     ): void {
-        $cfg = $this->config("htl_pv_api.settings");
-        $client = new PVClient(
-            $cfg->get("api_base_url") ?? "http://localhost:4010",
-        );
-        $store = new PVStore();
+        /** @var \Drupal\htl_pv_api\Service\PVClient $client */
+        $client = \Drupal::service('htl_pv_api.client');
+        /** @var \Drupal\htl_pv_api\Service\PVStore $store */
+        $store = \Drupal::service('htl_pv_api.store');
 
         try {
             $live = $client->fetchLive();
@@ -189,12 +188,11 @@ class PVSettingsForm extends ConfigFormBase
         }
     }
 
-    public function submitForm(
+    protected function submitSettingsForm(
         array &$form,
         FormStateInterface $form_state,
     ): void {
-        $this->configFactory
-            ->getEditable("htl_pv_api.settings")
+        $this->settings()
             ->set("api_base_url", $form_state->getValue("api_base_url"))
             ->set("cron_enabled", (bool) $form_state->getValue("cron_enabled"))
             ->set("cron_interval", (int) $form_state->getValue("cron_interval"))
@@ -225,7 +223,5 @@ class PVSettingsForm extends ConfigFormBase
                 trim($form_state->getValue("css_value_unit") ?? ""),
             )
             ->save();
-
-        parent::submitForm($form, $form_state);
     }
 }

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\htl_pv_api\Service;
 
+use Drupal\htl_core\Trait\HtlLoggerTrait;
 use Drupal\htl_pv_api\Model\PVSample;
 
 /**
@@ -9,8 +12,10 @@ use Drupal\htl_pv_api\Model\PVSample;
  */
 class PVStore
 {
+    use HtlLoggerTrait;
+
     /**
-     * Insert or update a single sample (keyed by provider + sampled_at).
+     * Insert or update a single sample (keyed by sampled_at).
      */
     public function upsert(PVSample $s): void
     {
@@ -30,7 +35,8 @@ class PVStore
                 ])
                 ->execute();
         } catch (\Throwable $e) {
-            \Drupal::logger("htl_pv_api")->error(
+            $this->htlError(
+                "htl_pv_api",
                 "PVStore: merge failed: @msg",
                 ["@msg" => $e->getMessage()],
             );

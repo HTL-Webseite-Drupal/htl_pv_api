@@ -2,7 +2,8 @@ services:
   htl_pv_api.client:
     class: Drupal\htl_pv_api\Service\PVClient
     arguments:
-      - '%htl_pv_api.api_base_url%'
+      - '@config.factory'
+      - '@htl_pv_api.field_map'
 
   htl_pv_api.store:
     class: Drupal\htl_pv_api\Service\PVStore
@@ -11,6 +12,3 @@ services:
     class: Drupal\htl_pv_api\Service\PVFieldMap
     arguments:
       - '@config.factory'
-
-parameters:
-  htl_pv_api.api_base_url: 'http://localhost:4010'
