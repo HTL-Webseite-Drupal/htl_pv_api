@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+    title: PV Mock API
+    description: Mock API for photovoltaic system data (live data only)
+    version: 2.0.0
+
+servers:
+    - url: http://localhost:4010
+
+paths:
+    /pv/live:
+        get:
+            summary: Current live PV data
+            responses:
+                "200":
+                    description: Live power values
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                additionalProperties: false
+                                required:
+                                    - timestamp
+                                    - pv_power_w
+                                    - grid_power_w
+                                    - house_consumption_w
+                                properties:
+                                    timestamp:
+                                        type: string
+                                        format: date-time
+                                    pv_power_w:
+                                        type: integer
+                                        minimum: 0
+                                        maximum: 9000
+                                    grid_power_w:
+                                        type: integer
+                                        minimum: -5000
+                                        maximum: 5000
+                                    house_consumption_w:
+                                        type: integer
+                                        minimum: 0
+                                        maximum: 12000

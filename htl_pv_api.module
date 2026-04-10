@@ -1,0 +1,122 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for htl_pv_api module.
+ */
+
+use Drupal\htl_pv_api\Service\PVClient;
+use Drupal\htl_pv_api\Service\PVStore;
+
+/**
+ * Implements hook_theme().
+ */
+function htl_pv_api_theme($existing, $type, $theme, $path) {
+  return [
+    'pv_live_block' => [
+      'variables' => [
+        'live'      => NULL,
+        'field_map' => [],
+        'max_w'     => 10000,
+        'css'       => [],
+      ],
+    ],
+    'pv_dashboard' => [
+      'variables' => [
+        'live'               => NULL,
+        'field_map'          => [],
+        'today_kwh'          => 0,
+        'today_consumed_kwh' => 0,
+        'today_exported_kwh' => 0,
+        'self_pct'           => 0,
+        'month_produced_kwh' => 0,
+        'month_consumed_kwh' => 0,
+        'month_exported_kwh' => 0,
+        'chart'              => NULL,
+        'peak_w'             => 0,
+        'peak_time'          => NULL,
+        'sample_count'       => 0,
+        'refresh_url'        => NULL,
+        'max_w'              => 10000,
+        'css'                => [],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Wird bei jedem Drupal Cron-Lauf ausgeführt.
+ * Prüft das konfigurierte Intervall und holt nur dann neue Daten,
+ * wenn genug Zeit seit dem letzten Abruf vergangen ist.
+ *
+ * Beispiel: Bei Intervall 60 Sekunden und Drupal Cron läuft jede Minute,
+ * wird jede Minute ein neues Sample geholt.
+ */
+function htl_pv_api_cron() {
+  $lock      = \Drupal::lock();
+  $lock_name = 'htl_pv_api_cron';
+
+  if (!$lock->acquire($lock_name, 120)) {
+    return;
+  }
+
+  try {
+    $state = \Drupal::state();
+    $last  = (int) $state->get('htl_pv_api.cron_last_run', 0);
+    $now   = time();
+    $cfg   = \Drupal::config('htl_pv_api.settings');
+
+    if (!(bool) ($cfg->get('cron_enabled') ?? TRUE)) {
+      return;
+    }
+
+    // Prüfe, ob das Intervall abgelaufen ist
+    $min_interval = max(10, (int) ($cfg->get('cron_interval') ?? 60));
+    if ($now - $last < $min_interval) {
+      return; // Noch nicht genug Zeit vergangen
+    }
+
+    $client = new PVClient(
+      $cfg->get('api_base_url') ?? 'http://localhost:4010',
+      \Drupal::service('htl_pv_api.field_map'),
+    );
+    $store  = new PVStore();
+
+    // Live sample.
+    try {
+      $live = $client->fetchLive();
+      $store->upsert($live);
+    }
+    catch (\Throwable $e) {
+      \Drupal::logger('htl_pv_api')->error('Cron: fetchLive failed: @msg', ['@msg' => $e->getMessage()]);
+    }
+
+    $state->set('htl_pv_api.cron_last_run', $now);
+
+    // Retention cleanup.
+    $retention_days = (int) ($cfg->get('data_retention_days') ?? 30);
+    if ($retention_days > 0) {
+      try {
+        $cutoff  = gmdate('Y-m-d H:i:s', strtotime("-{$retention_days} days", $now));
+        $deleted = $store->deleteOlderThan($cutoff);
+        if ($deleted > 0) {
+          \Drupal::logger('htl_pv_api')->info('Cron: deleted @count samples older than @days days.', [
+            '@count' => $deleted,
+            '@days'  => $retention_days,
+          ]);
+        }
+      }
+      catch (\Throwable $e) {
+        \Drupal::logger('htl_pv_api')->error('Cron: cleanup failed: @msg', ['@msg' => $e->getMessage()]);
+      }
+    }
+  }
+  catch (\Throwable $e) {
+    \Drupal::logger('htl_pv_api')->error('Cron: @msg', ['@msg' => $e->getMessage()]);
+  }
+  finally {
+    try { $lock->release($lock_name); } catch (\Throwable $e) {}
+  }
+}

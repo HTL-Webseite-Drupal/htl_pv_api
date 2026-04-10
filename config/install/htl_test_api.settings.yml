@@ -1,0 +1,39 @@
+api_base_url: "http://mock-api:4010"
+poll_interval: 15
+cron_enabled: false
+cron_interval: 60
+data_retention_days: 30
+max_power_w: 10000
+chart_interval_minutes: 15
+field_map:
+  timestamp_key: "timestamp"
+  fields:
+    power_w:
+      api_key: "pv_power_w"
+      label: "PV-Erzeugung"
+      unit: "kW"
+      scale: 0.001
+      enabled: true
+    grid_power_w:
+      api_key: "grid_power_w"
+      label: "Netzleistung"
+      unit: "kW"
+      scale: 0.001
+      enabled: true
+    house_consumption_w:
+      api_key: "consumption_w"
+      label: "Hausverbrauch"
+      unit: "kW"
+      scale: 0.001
+      enabled: true
+    energy_wh_total:
+      api_key: "energy_wh_total"
+      label: "Energie gesamt"
+      unit: "kWh"
+      scale: 0.001
+      enabled: false
+css_card_bg: ""
+css_gauge_arc: ""
+css_gauge_label: ""
+css_value_number: ""
+css_value_unit: ""

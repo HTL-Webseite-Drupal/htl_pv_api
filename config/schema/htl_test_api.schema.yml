@@ -1,0 +1,76 @@
+htl_pv_api.settings:
+    type: mapping
+    label: "HTL PV settings"
+    mapping:
+        api_base_url:
+            type: string
+            label: "PV API base URL"
+        poll_interval:
+            type: integer
+            label: "Browser poll interval (seconds)"
+        cron_enabled:
+            type: boolean
+            label: "Cron data collection enabled"
+        cron_interval:
+            type: integer
+            label: "Cron fetch interval (seconds)"
+        data_retention_days:
+            type: integer
+            label: "Data retention (days)"
+        max_power_w:
+            type: integer
+            label: "Max PV power (W) for gauge"
+        chart_interval_minutes:
+            type: integer
+            label: "Day chart aggregation interval (minutes)"
+        field_map:
+            type: mapping
+            label: "PV field mapping"
+            mapping:
+                timestamp_key:
+                    type: string
+                    label: "API key for the timestamp field"
+                fields:
+                    type: mapping
+                    label: "Field definitions"
+                    mapping:
+                        power_w:
+                            type: mapping
+                            label: "PV power field"
+                            mapping: &field_def
+                                api_key: { type: string, label: "API JSON key" }
+                                label: { type: string, label: "Display label" }
+                                unit: { type: string, label: "Display unit" }
+                                scale:
+                                    {
+                                        type: float,
+                                        label: "Display scale factor",
+                                    }
+                                enabled: { type: boolean, label: "Enabled" }
+                        grid_power_w:
+                            type: mapping
+                            label: "Grid power field"
+                            mapping: *field_def
+                        house_consumption_w:
+                            type: mapping
+                            label: "House consumption field"
+                            mapping: *field_def
+                        energy_wh_total:
+                            type: mapping
+                            label: "Total energy field"
+                            mapping: *field_def
+        css_card_bg:
+            type: string
+            label: "CSS class: card background"
+        css_gauge_arc:
+            type: string
+            label: "CSS class: gauge arc + Erzeugung label"
+        css_gauge_label:
+            type: string
+            label: "CSS class: Erzeugung text"
+        css_value_number:
+            type: string
+            label: "CSS class: power number"
+        css_value_unit:
+            type: string
+            label: "CSS class: unit (kW)"

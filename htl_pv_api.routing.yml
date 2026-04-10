@@ -1,0 +1,39 @@
+htl_pv_api.settings:
+  path: '/admin/config/system/htl-pv-api'
+  defaults:
+    _form: '\Drupal\htl_pv_api\Form\PVSettingsForm'
+    _title: 'PV Einstellungen'
+  requirements:
+    _permission: 'administer site configuration'
+
+htl_pv_api.dashboard:
+  path: '/pvoutput/view'
+  defaults:
+    _controller: '\Drupal\htl_pv_api\Controller\PVController::dashboard'
+    _title: 'PV Dashboard'
+  requirements:
+    _access: 'TRUE'
+
+htl_pv_api.fetch:
+  path: '/pvoutput/fetch'
+  defaults:
+    _controller: '\Drupal\htl_pv_api\Controller\PVController::fetch'
+  methods: [GET]
+  requirements:
+    _access: 'TRUE'
+
+htl_pv_api.chart_data:
+  path: '/pvoutput/chart-data'
+  defaults:
+    _controller: '\Drupal\htl_pv_api\Controller\PVController::chartData'
+  methods: [GET]
+  requirements:
+    _access: 'TRUE'
+
+htl_pv_api.cron:
+  path: '/pvoutput/cron/{key}'
+  defaults:
+    _controller: '\Drupal\htl_pv_api\Controller\PVController::cron'
+  methods: [GET]
+  requirements:
+    _access: 'TRUE'

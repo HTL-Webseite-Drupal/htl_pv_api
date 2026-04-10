@@ -1,0 +1,12 @@
+pv_ui:
+  css:
+    component:
+      css/pv-ui.css: {}
+
+pv_dashboard:
+  js:
+    js/chart.umd.min.js: {}
+    js/pv-dashboard-new.js: {}
+  dependencies:
+    - core/drupal
+    - core/drupalSettings

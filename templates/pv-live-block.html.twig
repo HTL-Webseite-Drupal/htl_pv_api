@@ -1,0 +1,38 @@
+{#
+  PV Live Block — Fronius-style circular power gauge.
+  Variables:
+    - live: PVSample (power_w)
+    - field_map: array keyed by field name (api_key, label, unit, scale, enabled)
+    - max_w: int — gauge maximum in watts
+    - css: { card_bg, gauge_arc, gauge_label, value_number, value_unit }
+#}
+{% set power = live.power_w ?? 0 %}
+{% set raw_pct = max_w > 0 ? (power / max_w * 100)|round(0) : 0 %}
+{% set pct = raw_pct < 0 ? 0 : (raw_pct > 100 ? 100 : raw_pct) %}
+{% set dash = (pct / 100 * 339.29)|round(1) %}
+{% set power_label = field_map.power_w.label ?? 'Erzeugung' %}
+{% set power_unit  = field_map.power_w.unit  ?? 'kW' %}
+{% set power_scale = field_map.power_w.scale ?? 0.001 %}
+
+<div class="pv-live-card {{ css.card_bg }}" data-pv-live>
+  <div class="pv-gauge">
+    <svg viewBox="0 0 120 120" class="pv-gauge__svg" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="60" r="54" class="pv-gauge__track"/>
+      <circle cx="60" cy="60" r="54"
+              class="pv-gauge__arc {{ css.gauge_arc }}"
+              stroke-dasharray="{{ dash }} {{ 339.29 - dash }}"
+              stroke-dashoffset="84.82"
+              transform="rotate(-90 60 60)"/>
+      <text x="60" y="54"
+            class="pv-gauge__svg-number {{ css.value_number }}"
+            text-anchor="middle"
+            dominant-baseline="auto"
+            data-pv-power>{{ (power * power_scale)|number_format(2) }}</text>
+      <text x="60" y="70"
+            class="pv-gauge__svg-unit {{ css.value_unit }}"
+            text-anchor="middle"
+            dominant-baseline="auto">{{ power_unit }}</text>
+    </svg>
+  </div>
+  <div class="pv-gauge__label {{ css.gauge_label }}">{{ power_label }}</div>
+</div>

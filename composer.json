@@ -1,0 +1,8 @@
+{
+    "name": "custom/htl_pv_api",
+    "type": "drupal-module",
+    "description": "Drupal module htl_pv_api",
+    "require": {
+        "drupal/core": "^10 || ^11"
+    }
+}

@@ -1,0 +1,130 @@
+<?php
+
+/**
+ * @file
+ * Install and uninstall hooks for htl_pv_api.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function htl_pv_api_schema(): array {
+  return [
+    'htl_pv_sample' => [
+      'description' => 'PV data samples.',
+      'fields' => [
+        'id' => [
+          'type'     => 'serial',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'sampled_at' => [
+          'type'     => 'varchar',
+          'length'   => 19,
+          'not null' => TRUE,
+          'default'  => '',
+        ],
+        'power_w' => [
+          'type'     => 'float',
+          'not null' => FALSE,
+        ],
+        'grid_power_w' => [
+          'type'     => 'float',
+          'not null' => FALSE,
+        ],
+        'house_consumption_w' => [
+          'type'     => 'float',
+          'not null' => FALSE,
+        ],
+        'energy_wh_total' => [
+          'type'     => 'float',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['id'],
+      'unique keys' => [
+        'sampled_at_unique' => ['sampled_at'],
+      ],
+      'indexes' => [
+        'sampled_at_idx' => ['sampled_at'],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_install().
+ */
+function htl_pv_api_install(): void {
+  // Generate a random cron key for the dedicated cron endpoint.
+  $cron_key = bin2hex(random_bytes(32));
+  \Drupal::state()->set('htl_pv_api.cron_key', $cron_key);
+
+  \Drupal::messenger()->addStatus(t('PV Test API installiert. Bitte konfiguriere den Cron unter <a href="@url">Einstellungen</a>.', [
+    '@url' => '/admin/config/system/htl-pv-api',
+  ]));
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function htl_pv_api_uninstall(): void {
+  // Remove placed block instances.
+  try {
+    foreach (\Drupal::entityTypeManager()->getStorage('block')->loadMultiple() as $block) {
+      try {
+        if (in_array($block->getPluginId(), ['pvoutput_block', 'pv_live_block'])) {
+          $block->delete();
+        }
+      }
+      catch (\Throwable $e) {}
+    }
+  }
+  catch (\Throwable $e) {}
+
+  // Delete all htl_pv_sample nodes and the node type itself (legacy cleanup).
+  try {
+    if (\Drupal::moduleHandler()->moduleExists('node')) {
+      $storage = \Drupal::entityTypeManager()->getStorage('node');
+      $nids = $storage->getQuery()
+        ->condition('type', 'htl_pv_sample')
+        ->accessCheck(FALSE)
+        ->execute();
+      if (!empty($nids)) {
+        $storage->delete($storage->loadMultiple($nids));
+      }
+    }
+  }
+  catch (\Throwable $e) {}
+
+  try {
+    $node_type = \Drupal::entityTypeManager()
+      ->getStorage('node_type')
+      ->load('htl_pv_sample');
+    if ($node_type) {
+      $node_type->delete();
+    }
+  }
+  catch (\Throwable $e) {}
+
+  // Remove module state.
+  try {
+    \Drupal::state()->delete('htl_pv_api.cron_last_run');
+    \Drupal::state()->delete('htl_pv_api.cron_key');
+  }
+  catch (\Throwable $e) {}
+}
+
+/**
+ * Add grid_power_w, house_consumption_w columns.
+ */
+function htl_pv_api_update_10001(): void {
+  $schema = \Drupal::database()->schema();
+  $spec = ['type' => 'float', 'not null' => FALSE];
+
+  foreach (['grid_power_w', 'house_consumption_w'] as $col) {
+    if (!$schema->fieldExists('htl_pv_sample', $col)) {
+      $schema->addField('htl_pv_sample', $col, $spec);
+    }
+  }
+}

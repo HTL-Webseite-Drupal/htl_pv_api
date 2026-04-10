@@ -1,0 +1,134 @@
+name: Version Update and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'upgrade = major x.0.0, release = minor 0.x.0, patch = patch  0.0.x'
+        required: true
+        default: 'release'
+        type: choice
+        options: [patch, release, upgrade]
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: write
+
+jobs:
+  versioning:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && (
+        contains(github.event.head_commit.message, '-release') ||
+        contains(github.event.head_commit.message, '-patch') ||
+        contains(github.event.head_commit.message, '-upgrade')
+      ))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect release type
+        id: mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_INPUT: ${{ github.event.inputs.release_type }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          # Standard-Wert aus workflow_dispatch-Input (bei push leer)
+          TYPE="${RELEASE_INPUT}"
+
+          if [ "${EVENT_NAME}" = "push" ]; then
+            # Nur die erste Zeile der Commit-Message nehmen
+            first_line=$(printf '%s\n' "$COMMIT_MSG" | head -n1)
+
+            if echo "$first_line" | grep -qi -- "-upgrade"; then
+              TYPE="upgrade"
+            elif echo "$first_line" | grep -qi -- "-release"; then
+              TYPE="release"
+            elif echo "$first_line" | grep -qi -- "-patch"; then
+              TYPE="patch"
+            fi
+          fi
+
+          # Fallback, falls irgendwie doch nichts gesetzt ist
+          [ -z "$TYPE" ] && TYPE="release"
+
+          echo "release_type=$TYPE" >> "$GITHUB_OUTPUT"
+          echo "Using release_type=$TYPE"
+
+
+      - name: Compute next SemVer
+        id: version
+        env:
+          RELEASE_TYPE: ${{ steps.mode.outputs.release_type }}
+        run: |
+          git fetch --tags --force
+          mapfile -t versions < <(git tag --list | sed -E 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)
+          last="0.0.0"
+          if [ ${#versions[@]} -gt 0 ]; then
+            last="${versions[-1]}"
+          fi
+
+          IFS='.' read -r MA MI PA <<<"$last"
+          case "$RELEASE_TYPE" in
+            upgrade) NEW="$((MA+1)).0.0" ;;
+            release) NEW="${MA}.$((MI+1)).0" ;;
+            patch)   NEW="${MA}.${MI}.$((PA+1))" ;;
+            *)       NEW="${MA}.$((MI+1)).0" ;;
+          esac
+
+          echo "last_version=$last"
+          echo "new_version=$NEW"
+          echo "last_version=$last" >> "$GITHUB_OUTPUT"
+          echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "tag_v=v$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Git author
+        run: |
+          git config user.name  "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: Update version in htl_typegrid.info.yml
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          if [ -f htl_typegrid.info.yml ]; then
+            sed -i "s/^version:.*/version: ${NEW_VERSION}/" htl_typegrid.info.yml
+            git add htl_typegrid.info.yml
+            git commit -m "chore: bump module version to ${NEW_VERSION}"
+            git push
+          else
+            echo "htl_typegrid.info.yml nicht gefunden – überspringe."
+          fi
+
+      - name: Create annotated tag
+        env:
+          TAG_V: ${{ steps.version.outputs.tag_v }}
+        run: |
+          if git rev-parse "refs/tags/${TAG_V}" >/dev/null 2>&1; then
+            echo "Tag ${TAG_V} existiert bereits – skip."
+            exit 0
+          fi
+          git tag -a "$TAG_V" -m "Release $TAG_V"
+          git push origin "$TAG_V"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_V: ${{ steps.version.outputs.tag_v }}
+          RELEASE_TYPE: ${{ steps.mode.outputs.release_type }}
+        run: |
+          if gh release view "$TAG_V" >/dev/null 2>&1; then
+            echo "Release $TAG_V existiert bereits – skip."
+            exit 0
+          fi
+          gh release create "$TAG_V" \
+            --title "Release $TAG_V" \
+            --notes "Automatischer ${RELEASE_TYPE}-Release."

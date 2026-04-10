@@ -1,0 +1,134 @@
+{#
+  PV Dashboard — full page view with improved layout.
+  Variables:
+    - live: PVSample (power_w, grid_power_w, house_consumption_w)
+    - field_map: array keyed by field name (api_key, label, unit, scale, enabled)
+    - today_kwh, today_consumed_kwh, today_exported_kwh, self_pct
+    - month_produced_kwh, month_consumed_kwh, month_exported_kwh
+    - peak_w, peak_time, sample_count, refresh_url
+    - max_w: int
+    - css: { card_bg, gauge_arc, gauge_label, value_number, value_unit }
+#}
+{% set power = live.power_w ?? 0 %}
+{% set raw_pct = max_w > 0 ? (power / max_w * 100)|round(0) : 0 %}
+{% set pct = raw_pct < 0 ? 0 : (raw_pct > 100 ? 100 : raw_pct) %}
+{% set dash = (pct / 100 * 339.29)|round(1) %}
+{% set power_label = field_map.power_w.label ?? 'PV-Erzeugung' %}
+{% set power_unit  = field_map.power_w.unit  ?? 'kW' %}
+{% set power_scale = field_map.power_w.scale ?? 0.001 %}
+
+<div class="pv-dashboard" data-pv-dashboard>
+
+  {# ─── Top Section: Gauge + Stats ───────────────────────────────── #}
+  <div class="pv-dashboard__top">
+    
+    {# Left: Live Gauge #}
+    <div class="pv-dashboard__gauge">
+      <div class="pv-live-card {{ css.card_bg }}">
+        <div class="pv-gauge pv-gauge--large">
+          <svg viewBox="0 0 120 120" class="pv-gauge__svg" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="60" cy="60" r="54" class="pv-gauge__track"/>
+            <circle cx="60" cy="60" r="54"
+                    class="pv-gauge__arc {{ css.gauge_arc }}"
+                    stroke-dasharray="{{ dash }} {{ 339.29 - dash }}"
+                    stroke-dashoffset="84.82"
+                    transform="rotate(-90 60 60)"/>
+            <text x="60" y="54"
+                  class="pv-gauge__svg-number {{ css.value_number }}"
+                  text-anchor="middle"
+                  dominant-baseline="auto"
+                  data-pv-power>{{ (power * power_scale)|number_format(2) }}</text>
+            <text x="60" y="70"
+                  class="pv-gauge__svg-unit {{ css.value_unit }}"
+                  text-anchor="middle"
+                  dominant-baseline="auto">{{ power_unit }}</text>
+          </svg>
+        </div>
+        <div class="pv-gauge__label {{ css.gauge_label }}">{{ power_label }}</div>
+      </div>
+    </div>
+
+    {# Right: Energy Stats Table #}
+    <div class="pv-dashboard__stats">
+      <div class="pv-stats-card">
+        <table class="pv-stats-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Heute</th>
+              <th>Monat</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Erzeugt</td>
+              <td><strong>{{ today_kwh|number_format(2) }} kWh</strong></td>
+              <td><strong>{{ month_produced_kwh|number_format(2) }} kWh</strong></td>
+            </tr>
+            <tr>
+              <td>Verbraucht</td>
+              <td><strong>{{ today_consumed_kwh|number_format(2) }} kWh</strong></td>
+              <td><strong>{{ month_consumed_kwh|number_format(2) }} kWh</strong></td>
+            </tr>
+            <tr>
+              <td>Eingespeist</td>
+              <td><strong>{{ today_exported_kwh|number_format(2) }} kWh</strong></td>
+              <td><strong>{{ month_exported_kwh|number_format(2) }} kWh</strong></td>
+            </tr>
+            <tr>
+              <td>Eigenverbrauch</td>
+              <td><strong>{{ self_pct }}%</strong></td>
+              <td><strong>—</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {# ─── Bottom Section: Interactive Chart ────────────────────────── #}
+  <div class="pv-dashboard__chart">
+    <div class="pv-chart-card">
+      
+      {# Chart Navigation #}
+      <div class="pv-chart-nav">
+        <div class="pv-chart-nav__tabs">
+          <button class="pv-chart-tab pv-chart-tab--active" data-period="day">Tag</button>
+          <button class="pv-chart-tab" data-period="week">Woche</button>
+          <button class="pv-chart-tab" data-period="month">Monat</button>
+          <button class="pv-chart-tab" data-period="year">Jahr</button>
+        </div>
+        
+        <div class="pv-chart-nav__date">
+          <button class="pv-chart-nav__btn pv-chart-nav__btn--prev" data-nav="prev" title="Zurück">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M12 4l-8 6 8 6V4z"/>
+            </svg>
+          </button>
+          <span class="pv-chart-nav__label" data-date-label>Heute</span>
+          <button class="pv-chart-nav__btn pv-chart-nav__btn--next" data-nav="next" title="Vor">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M8 4v12l8-6-8-6z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {# Chart Container #}
+      <div class="pv-chart-container">
+        <canvas id="pv-chart"></canvas>
+      </div>
+
+      {# Chart Info #}
+      <div class="pv-chart-info">
+        <span class="pv-chart-info__item">
+          Peak: <strong data-chart-peak>{{ (peak_w * power_scale)|number_format(2) }} {{ power_unit }}</strong>
+        </span>
+        <span class="pv-chart-info__item">
+          Messpunkte: <strong data-chart-samples>{{ sample_count }}</strong>
+        </span>
+      </div>
+    </div>
+  </div>
+
+</div>

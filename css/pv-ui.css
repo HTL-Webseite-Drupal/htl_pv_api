@@ -1,0 +1,438 @@
+/* ===================================================================
+   PV UI — Fronius-inspired solar dashboard
+   =================================================================== */
+
+:root {
+    --pv-green: #3dba4e;
+    --pv-green-light: #65d574;
+    --pv-track: #e2e6ea;
+    --pv-bg: #f4f6f8;
+    --pv-card-bg: #ffffff;
+    --pv-text: #1e1e2f;
+    --pv-muted: #8892a4;
+    --pv-radius: 12px;
+    --pv-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Global resets and base styles ─────────────────────────────── */
+#block-htl-website-mahi-pvlive {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: fit-content;
+    align-self: center;
+}
+
+/* ── Strip Drupal block wrapper visual styling ──────────────────── */
+/* Targets the common Drupal block wrapper class patterns */
+.block-pv-live-block,
+.block--plugin-id--pv-live-block,
+.block-htl-test-api-pv-live-block {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    max-width: 250px !important;
+}
+
+/* ── Card ───────────────────────────────────────────────────────── */
+.pv-live-card {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: var(--pv-card-bg);
+    border-radius: var(--pv-radius);
+    box-shadow: var(--pv-shadow);
+    padding: 20px 28px 16px;
+    min-width: 40px;
+}
+
+/* ── Gauge container ────────────────────────────────────────────── */
+.pv-gauge {
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+}
+.pv-gauge--large {
+    width: 180px;
+    height: 180px;
+}
+.pv-gauge__svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* ── Gauge SVG elements ─────────────────────────────────────────── */
+.pv-gauge__track {
+    fill: none;
+    stroke: var(--pv-track);
+    stroke-width: 8;
+}
+.pv-gauge__arc {
+    fill: none;
+    stroke: var(--pv-green);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.6s ease;
+}
+
+/* SVG text inside the circle */
+.pv-gauge__svg-number {
+    fill: var(--pv-text);
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+}
+.pv-gauge--large .pv-gauge__svg-number {
+    font-size: 26px;
+}
+.pv-gauge__svg-unit {
+    fill: var(--pv-muted);
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ── Label below gauge ──────────────────────────────────────────── */
+.pv-gauge__label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--pv-green);
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+}
+
+/* ── Dashboard layout ───────────────────────────────────────────── */
+.pv-dashboard {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 24px 16px;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--pv-text);
+}
+
+.pv-section {
+    background: var(--pv-card-bg);
+    border-radius: var(--pv-radius);
+    box-shadow: var(--pv-shadow);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+.pv-section h3 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--pv-text);
+}
+
+.pv-live-section {
+    display: flex;
+    justify-content: center;
+    padding: 28px 24px;
+}
+
+/* ── Energy summaries ───────────────────────────────────────────── */
+.pv-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 560px) {
+    .pv-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.pv-summary-card {
+    background: var(--pv-bg);
+    border-radius: 10px;
+    padding: 16px 20px;
+}
+.pv-summary-card__title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--pv-green);
+    margin-bottom: 10px;
+}
+.pv-summary-card__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    font-size: 0.88rem;
+    border-bottom: 1px solid var(--pv-track);
+}
+.pv-summary-card__row:last-child {
+    border-bottom: none;
+}
+.pv-summary-card__row span {
+    color: var(--pv-muted);
+}
+.pv-summary-card__row strong {
+    color: var(--pv-text);
+    font-weight: 600;
+}
+
+/* ── Chart ──────────────────────────────────────────────────────── */
+.pv-chart-wrap {
+    position: relative;
+    height: 280px;
+}
+.pv-chart-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+.pv-chart-meta {
+    font-size: 0.82rem;
+    color: var(--pv-muted);
+    margin-top: 10px;
+    text-align: center;
+}
+.pv-chart-meta strong {
+    color: var(--pv-text);
+}
+.pv-chart-meta span {
+    color: var(--pv-muted);
+}
+
+/* ── Actions ────────────────────────────────────────────────────── */
+.pv-actions {
+    text-align: center;
+    margin-top: 4px;
+}
+.pv-btn {
+    display: inline-block;
+    background: var(--pv-green);
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 28px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+.pv-btn:hover {
+    background: var(--pv-green-light);
+    color: #fff;
+}
+
+/* ===================================================================
+   Dashboard Layout (Neue Version)
+   =================================================================== */
+
+.pv-dashboard {
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    background: var(--pv-bg);
+}
+
+/* ── Top Section: Gauge + Stats Grid ─────────────────────────────── */
+.pv-dashboard__top {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+    .pv-dashboard__top {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Gauge Section ──────────────────────────────────────────────── */
+.pv-dashboard__gauge {
+    display: flex;
+    align-items: flex-start;
+}
+
+/* ── Stats Table ────────────────────────────────────────────────── */
+.pv-dashboard__stats {
+    display: flex;
+    align-items: stretch;
+}
+
+.pv-stats-card {
+    background: var(--pv-card-bg);
+    border-radius: var(--pv-radius);
+    box-shadow: var(--pv-shadow);
+    padding: 24px;
+    flex: 1;
+}
+
+.pv-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.pv-stats-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-weight: 600;
+    color: var(--pv-text);
+    border-bottom: 2px solid var(--pv-track);
+}
+
+.pv-stats-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--pv-track);
+}
+
+.pv-stats-table td:first-child {
+    color: var(--pv-muted);
+    font-weight: 500;
+}
+
+.pv-stats-table strong {
+    color: var(--pv-text);
+    font-weight: 600;
+}
+
+.pv-stats-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ── Chart Section ──────────────────────────────────────────────── */
+.pv-dashboard__chart {
+    width: 100%;
+}
+
+.pv-chart-card {
+    background: var(--pv-card-bg);
+    border-radius: var(--pv-radius);
+    box-shadow: var(--pv-shadow);
+    padding: 24px;
+}
+
+/* ── Chart Navigation ───────────────────────────────────────────── */
+.pv-chart-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.pv-chart-nav__tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.pv-chart-tab {
+    padding: 8px 16px;
+    border: 1px solid var(--pv-track);
+    background: transparent;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--pv-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pv-chart-tab:hover {
+    background: var(--pv-bg);
+    color: var(--pv-text);
+}
+
+.pv-chart-tab--active {
+    background: var(--pv-green);
+    color: white;
+    border-color: var(--pv-green);
+}
+
+/* ── Date Navigation ────────────────────────────────────────────── */
+.pv-chart-nav__date {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pv-chart-nav__label {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--pv-text);
+    min-width: 150px;
+    text-align: center;
+}
+
+.pv-chart-nav__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--pv-track);
+    background: transparent;
+    border-radius: 6px;
+    color: var(--pv-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pv-chart-nav__btn:hover {
+    background: var(--pv-green);
+    border-color: var(--pv-green);
+    color: white;
+}
+
+.pv-chart-nav__btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── Chart Container ────────────────────────────────────────────── */
+.pv-chart-container {
+    position: relative;
+    height: 400px;
+    margin-bottom: 16px;
+}
+
+#pv-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* ── Chart Info ─────────────────────────────────────────────────── */
+.pv-chart-info {
+    display: flex;
+    gap: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--pv-track);
+    font-size: 14px;
+    color: var(--pv-muted);
+}
+
+.pv-chart-info__item strong {
+    color: var(--pv-text);
+    font-weight: 600;
+}
+
+/* ── Responsive Anpassungen ─────────────────────────────────────── */
+@media (max-width: 640px) {
+    .pv-chart-nav {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pv-chart-nav__tabs {
+        justify-content: center;
+    }
+
+    .pv-chart-nav__date {
+        justify-content: center;
+    }
+
+    .pv-chart-container {
+        height: 300px;
+    }
+}
