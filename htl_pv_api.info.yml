@@ -5,5 +5,8 @@ package: HTL
 core_version_requirement: ^10 || ^11
 version: 1.0.0
 
+dependencies:
+    - htl_core:htl_core
+
 #dependencies:
 #  - drupal:media
