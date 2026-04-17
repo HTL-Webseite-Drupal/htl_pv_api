@@ -18,14 +18,21 @@ class PVClient
     use HtlLoggerTrait;
 
     protected string $baseUrl;
+    protected string $liveEndpointPath;
 
     public function __construct(
         ConfigFactoryInterface $configFactory,
         protected readonly PVFieldMap $fieldMap,
     ) {
         $this->baseUrl = rtrim(
-            $configFactory->get('htl_pv_api.settings')->get('api_base_url') ?? 'http://localhost:4010',
-            '/',
+            $configFactory->get("htl_pv_api.settings")->get("api_base_url") ??
+                "http://localhost:4010",
+            "/",
+        );
+        $this->liveEndpointPath = $this->normalizePath(
+            (string) ($configFactory
+                ->get("htl_pv_api.settings")
+                ->get("live_endpoint_path") ?? "/pv/live"),
         );
     }
 
@@ -34,13 +41,12 @@ class PVClient
      */
     public function fetchLive(): PVSample
     {
-        $d = $this->get("/pv/live");
+        $d = $this->fetchLivePayload();
 
         $tsKey = $this->fieldMap->getTimestampKey();
+        $rawTimestamp = $this->fieldMap->extractValue($d, $tsKey);
         try {
-            $ts = !empty($d[$tsKey])
-                ? new \DateTime($d[$tsKey])
-                : new \DateTime();
+            $ts = $this->parseTimestamp($rawTimestamp);
         } catch (\Throwable $e) {
             $ts = new \DateTime();
         }
@@ -48,6 +54,14 @@ class PVClient
         return new PVSample(
             ["sampled_at" => $ts] + $this->fieldMap->mapApiResponse($d),
         );
+    }
+
+    /**
+     * Fetch the raw live JSON payload from the configured endpoint.
+     */
+    public function fetchLivePayload(): array
+    {
+        return $this->get($this->liveEndpointPath);
     }
 
     // -----------------------------------------------------------------------
@@ -79,11 +93,10 @@ class PVClient
                 $this->baseUrl = $base;
                 return $body;
             } catch (\Throwable $e) {
-                $this->htlNotice(
-                    "htl_pv_api",
-                    "PVClient: tried @url – @msg",
-                    ["@url" => $url, "@msg" => $e->getMessage()],
-                );
+                $this->htlNotice("htl_pv_api", "PVClient: tried @url – @msg", [
+                    "@url" => $url,
+                    "@msg" => $e->getMessage(),
+                ]);
                 $lastErr = $e;
             }
         }
@@ -117,5 +130,37 @@ class PVClient
             $candidates[] = $s . "mock-api" . $p . $t;
         }
         return array_unique($candidates);
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $trimmed = trim($path);
+        if ($trimmed === "") {
+            return "/pv/live";
+        }
+
+        return str_starts_with($trimmed, "/") ? $trimmed : "/" . $trimmed;
+    }
+
+    private function parseTimestamp(mixed $rawTimestamp): \DateTime
+    {
+        if ($rawTimestamp === null || $rawTimestamp === "") {
+            return new \DateTime();
+        }
+
+        if (is_int($rawTimestamp) || is_float($rawTimestamp)) {
+            return new \DateTime("@" . (int) $rawTimestamp)->setTimezone(
+                new \DateTimeZone("UTC"),
+            );
+        }
+
+        $stringValue = trim((string) $rawTimestamp);
+        if ($stringValue !== "" && preg_match('/^\d+$/', $stringValue)) {
+            return new \DateTime("@" . (int) $stringValue)->setTimezone(
+                new \DateTimeZone("UTC"),
+            );
+        }
+
+        return new \DateTime($stringValue);
     }
 }

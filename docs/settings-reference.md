@@ -20,6 +20,21 @@ The HTTP client automatically tries the following fallbacks when `localhost` is 
 
 ---
 
+### Live Endpoint Path
+**Config key:** `live_endpoint_path`
+**Default:** `/pv/live`
+
+The relative path used for the live API request.
+
+Change this when the production API does not expose its live endpoint at `/pv/live`.
+Examples:
+
+- `/solar/realtime`
+- `/api/v1/inverter/current`
+- `/plant/0/live`
+
+---
+
 ### Browser-Polling Intervall
 **Config key:** `poll_interval`
 **Default:** `15` (seconds)
@@ -99,8 +114,15 @@ Changes here affect the entire module — no code changes needed.
 **Config key:** `field_map.timestamp_key`
 **Default:** `timestamp`
 
-The JSON key in the API response that holds the sample time.
-The value must be parseable by PHP's `DateTime` constructor (ISO 8601 is ideal).
+The JSON key or path in the API response that holds the sample time.
+
+Supported examples:
+
+- `timestamp`
+- `data.timestamp`
+- `results[0].measured_at`
+
+The module accepts ISO 8601 strings and Unix timestamps.
 
 ---
 
@@ -110,7 +132,7 @@ Each of the 4 data fields has the same 5 sub-settings:
 
 | Sub-setting | Config key suffix | Description |
 |---|---|---|
-| API-Schlüssel | `.api_key` | Exact JSON key in the API response |
+| API-Schlüssel | `.api_key` | Exact JSON key or dot path in the API response |
 | Anzeige-Name | `.label` | Label shown in dashboard and block |
 | Einheit | `.unit` | Unit string appended to values (`kW`, `%`, etc.) |
 | Skalierungsfaktor | `.scale` | Raw value × scale = displayed value |
@@ -149,7 +171,7 @@ Negative = exporting to the grid. Positive = importing from the grid.
 #### house_consumption_w — House Consumption
 | Setting | Default |
 |---|---|
-| api_key | `consumption_w` |
+| api_key | `house_consumption_w` |
 | label | `Hausverbrauch` |
 | unit | `kW` |
 | scale | `0.001` |
@@ -168,6 +190,28 @@ Negative = exporting to the grid. Positive = importing from the grid.
 
 Cumulative energy produced since midnight. Many inverters expose this separately.
 Disabled by default because the mock API does not provide it.
+
+---
+
+## PV API Inspector
+
+Route: `/admin/config/htl/pv-api/inspector`
+
+Use this page when the real inverter API becomes available.
+
+It shows:
+
+- the raw JSON payload returned by the current live endpoint
+- every detected scalar JSON path
+- a preview of the current mapping and whether each configured path resolves
+
+Recommended workflow:
+
+1. Set **API Base URL** and **Live Endpoint Path**
+2. Open **PV API Inspector**
+3. Copy the detected path for each needed value
+4. Save the matching `field_map` entries
+5. Use **Jetzt Daten abrufen** to confirm the mapping works
 
 ---
 

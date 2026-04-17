@@ -6,6 +6,7 @@ namespace Drupal\htl_pv_api\Form;
 
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\htl_core\Form\HtlSettingsFormBase;
+use Drupal\htl_pv_api\Service\PVFieldMap;
 
 class PVSettingsForm extends HtlSettingsFormBase
 {
@@ -25,6 +26,7 @@ class PVSettingsForm extends HtlSettingsFormBase
     ): array {
         $cfg = $this->settings();
         $store = \Drupal::service('htl_pv_api.store');
+        $fieldMap = (array) ($cfg->get("field_map") ?? []);
         $last = (int) \Drupal::state()->get("htl_pv_api.cron_last_run", 0);
 
         // --- Status -----------------------------------------------------------
@@ -70,6 +72,73 @@ class PVSettingsForm extends HtlSettingsFormBase
             ),
             "#required" => true,
         ];
+        $form["live_endpoint_path"] = [
+            "#type" => "textfield",
+            "#title" => $this->t("Live endpoint path"),
+            "#default_value" => $cfg->get("live_endpoint_path") ?? "/pv/live",
+            "#description" => $this->t(
+                "Pfad fuer den Live-Endpunkt relativ zur Base-URL, z.B. /pv/live oder /solar/realtime.",
+            ),
+            "#required" => true,
+        ];
+
+        // --- JSON field mapping -----------------------------------------------
+        $form["field_map"] = [
+            "#type" => "details",
+            "#title" => $this->t("JSON Feld-Mapping"),
+            "#tree" => true,
+            "#open" => true,
+            "#description" => $this->t(
+                "Lege hier fest, wo die Werte im API-JSON gefunden werden. Unterstuetzt einfache Keys, verschachtelte Pfade wie <code>data.live.power</code> und Array-Zugriffe wie <code>results[0].value</code>. Nutze den PV API Inspector unter <code>/admin/config/htl/pv-api/inspector</code>, um das aktuelle JSON und alle erkannten Pfade zu sehen.",
+            ),
+        ];
+        $form["field_map"]["timestamp_key"] = [
+            "#type" => "textfield",
+            "#title" => $this->t("Zeitstempel-Pfad"),
+            "#default_value" => $fieldMap["timestamp_key"] ?? PVFieldMap::DEFAULTS["timestamp_key"],
+            "#description" => $this->t(
+                "JSON-Key oder Pfad fuer den Zeitstempel. ISO-8601 und Unix-Timestamps werden unterstuetzt.",
+            ),
+            "#required" => true,
+        ];
+
+        foreach (PVFieldMap::FIELD_NAMES as $field) {
+            $definition = $fieldMap["fields"][$field] ?? PVFieldMap::DEFAULTS["fields"][$field];
+            $form["field_map"]["fields"][$field] = [
+                "#type" => "details",
+                "#title" => $this->t("@field Mapping", ["@field" => $field]),
+                "#open" => false,
+            ];
+            $form["field_map"]["fields"][$field]["api_key"] = [
+                "#type" => "textfield",
+                "#title" => $this->t("JSON-Pfad"),
+                "#default_value" => $definition["api_key"] ?? "",
+                "#description" => $this->t(
+                    "Pfad zum Rohwert im JSON, z.B. pv_power_w oder data.live.metrics.power.",
+                ),
+            ];
+            $form["field_map"]["fields"][$field]["label"] = [
+                "#type" => "textfield",
+                "#title" => $this->t("Anzeige-Name"),
+                "#default_value" => $definition["label"] ?? $field,
+            ];
+            $form["field_map"]["fields"][$field]["unit"] = [
+                "#type" => "textfield",
+                "#title" => $this->t("Einheit"),
+                "#default_value" => $definition["unit"] ?? "",
+            ];
+            $form["field_map"]["fields"][$field]["scale"] = [
+                "#type" => "number",
+                "#title" => $this->t("Skalierungsfaktor"),
+                "#step" => 0.001,
+                "#default_value" => $definition["scale"] ?? 1,
+            ];
+            $form["field_map"]["fields"][$field]["enabled"] = [
+                "#type" => "checkbox",
+                "#title" => $this->t("Aktiviert"),
+                "#default_value" => (bool) ($definition["enabled"] ?? true),
+            ];
+        }
 
         // --- Scheduling -------------------------------------------------------
         $form["scheduling"] = [
@@ -192,8 +261,28 @@ class PVSettingsForm extends HtlSettingsFormBase
         array &$form,
         FormStateInterface $form_state,
     ): void {
+        $fieldMap = (array) ($form_state->getValue("field_map") ?? []);
+        $fieldDefinitions = [];
+        foreach (PVFieldMap::FIELD_NAMES as $field) {
+            $definition = (array) ($fieldMap["fields"][$field] ?? []);
+            $defaults = PVFieldMap::DEFAULTS["fields"][$field];
+            $fieldDefinitions[$field] = [
+                "api_key" => trim((string) ($definition["api_key"] ?? $defaults["api_key"])),
+                "label" => trim((string) ($definition["label"] ?? $defaults["label"])),
+                "unit" => trim((string) ($definition["unit"] ?? $defaults["unit"])),
+                "scale" => is_numeric($definition["scale"] ?? null)
+                    ? (float) $definition["scale"]
+                    : (float) $defaults["scale"],
+                "enabled" => !empty($definition["enabled"]),
+            ];
+        }
+
         $this->settings()
             ->set("api_base_url", $form_state->getValue("api_base_url"))
+            ->set(
+                "live_endpoint_path",
+                trim((string) ($form_state->getValue("live_endpoint_path") ?? "/pv/live")),
+            )
             ->set("cron_enabled", (bool) $form_state->getValue("cron_enabled"))
             ->set("cron_interval", (int) $form_state->getValue("cron_interval"))
             ->set("poll_interval", (int) $form_state->getValue("poll_interval"))
@@ -222,6 +311,10 @@ class PVSettingsForm extends HtlSettingsFormBase
                 "css_value_unit",
                 trim($form_state->getValue("css_value_unit") ?? ""),
             )
+            ->set("field_map", [
+                "timestamp_key" => trim((string) ($fieldMap["timestamp_key"] ?? PVFieldMap::DEFAULTS["timestamp_key"])),
+                "fields" => $fieldDefinitions,
+            ])
             ->save();
     }
 }

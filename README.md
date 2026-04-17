@@ -15,6 +15,10 @@ with a live gauge and an interactive chart.
 - **Cron data collection** — built-in Drupal cron + dedicated HTTP cron endpoint
 - **Centralized field mapping** — change every API key, display label, unit and scale factor
   from one admin page; nothing else in the code needs to change
+- **Nested JSON path support** — mapping also works for payloads like `data.live.power`
+  or `results[0].value`
+- **Payload inspector** — admin page that shows the raw JSON response and every detected
+  scalar path for copy/paste into the mapping form
 - **Data retention** — automatic cleanup of old samples
 - **Docker-aware HTTP client** — auto-tries `host.docker.internal`, `172.17.0.1` and
   `mock-api` if `localhost` fails (useful in containerized setups)
@@ -36,6 +40,10 @@ Or enable via **Admin -> Extend**.
 
 All settings live at **Admin -> Configuration -> HTL -> PV API**
 (`/admin/config/htl/pv-api`).
+
+For unknown production payloads, open **PV API Inspector**
+(`Admin -> Configuration -> HTL -> PV API Inspector`) to inspect the live JSON and copy
+the correct paths into the mapping fields.
 
 | Setting | Description |
 |---|---|
@@ -115,7 +123,7 @@ The module was developed against a Node.js mock API. Expected endpoints:
 
 ```
 GET /pv/live
--> { "timestamp": "...", "pv_power_w": 3200, "grid_power_w": -100, "consumption_w": 900 }
+-> { "timestamp": "...", "pv_power_w": 3200, "grid_power_w": -100, "house_consumption_w": 900 }
 ```
 
 The actual JSON keys are fully configurable via **Feld-Mapping** -- no code changes needed.

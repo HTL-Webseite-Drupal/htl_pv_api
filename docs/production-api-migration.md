@@ -12,7 +12,8 @@ photovoltaic inverter API (Fronius, SMA, Huawei, custom, etc.).
 1. Go to **Admin → Configuration → HTL → PV API**
    (`/admin/config/htl/pv-api`)
 2. Change **API Base URL** to your real endpoint, e.g. `http://192.168.1.10/api`
-3. Click **Save**
+3. If needed, change **Live Endpoint Path** from `/pv/live` to the real path
+4. Click **Save**
 
 ### Via config file (for fresh installs)
 
@@ -98,33 +99,54 @@ Set **Skalierungsfaktor** to `1.0` and **Einheit** to `kW`.
 
 ## 3. If the API Returns a Different Timestamp Format
 
-The module uses PHP's `DateTime` constructor to parse the timestamp, which handles
-most ISO 8601 formats automatically (`2025-04-10T08:30:00Z`, `2025-04-10 08:30:00`,
-Unix timestamps as strings, etc.).
+The module accepts both ISO 8601 timestamps and Unix timestamps.
 
-If your API returns a Unix timestamp (integer, not string), you need a small code change
-in `src/Service/PVClient.php`:
+You can point the timestamp mapping to simple keys or nested paths such as:
 
-```php
-// Replace this in fetchLive():
-$ts = !empty($d[$tsKey]) ? new \DateTime($d[$tsKey]) : new \DateTime();
-
-// With this for Unix timestamps:
-$ts = !empty($d[$tsKey]) ? (new \DateTime())->setTimestamp((int)$d[$tsKey]) : new \DateTime();
-```
+- `timestamp`
+- `data.live.timestamp`
+- `results[0].time`
 
 ---
 
-## 4. If the API Endpoint Path is Different
+## 4. Use the PV API Inspector
 
-The module currently calls `/pv/live` for the live measurement.
+Open:
 
-If your production API uses a different path (e.g. `/solar/realtime`), edit
-`src/Service/PVClient.php`, method `fetchLive()`:
+- **Admin → Configuration → HTL → PV API Inspector**
+- `/admin/config/htl/pv-api/inspector`
 
-```php
-$d = $this->get('/pv/live');   // ← change this path
+This page fetches the current live payload and shows:
+
+- the complete raw JSON
+- every detected scalar path in that JSON
+- the current configured mapping and which values it resolves
+
+This is the easiest way to adapt the module when the production API is unknown in advance.
+
+### Example
+
+If the payload looks like this:
+
+```json
+{
+  "data": {
+    "live": {
+      "time": 1760000000,
+      "pv": { "current_w": 4200 },
+      "grid": { "power": -300 },
+      "house": { "consumption": 1800 }
+    }
+  }
+}
 ```
+
+then the mapping can be:
+
+- `field_map.timestamp_key` → `data.live.time`
+- `field_map.fields.power_w.api_key` → `data.live.pv.current_w`
+- `field_map.fields.grid_power_w.api_key` → `data.live.grid.power`
+- `field_map.fields.house_consumption_w.api_key` → `data.live.house.consumption`
 
 ---
 
@@ -147,7 +169,9 @@ drush cr   # just cache-rebuild if settings were changed in the UI
 ## 6. Checklist Summary
 
 - [ ] Set **API Base URL** to production endpoint
-- [ ] For each field: set the correct **API-Schlüssel** (JSON key from your API)
+- [ ] Set **Live Endpoint Path** if the live URL is not `/pv/live`
+- [ ] Open **PV API Inspector** and inspect the live payload
+- [ ] For each field: set the correct **API-Schlüssel** (JSON key/path from your API)
 - [ ] For each field: set the correct **Skalierungsfaktor** (check if API returns W or kW)
 - [ ] Disable fields that your inverter doesn't provide (**Aktiviert** unchecked)
 - [ ] Set the correct **Zeitstempel-Schlüssel**
@@ -163,6 +187,7 @@ drush cr   # just cache-rebuild if settings were changed in the UI
 |---|---|
 | All field defaults & fallback mapping | `src/Service/PVFieldMap.php` — `DEFAULTS` constant |
 | API HTTP requests | `src/Service/PVClient.php` |
+| Payload inspection page | `src/Controller/PVInspectorController.php` |
 | DB storage | `src/Service/PVStore.php` |
 | Data model (DTO) | `src/Model/PVSample.php` |
 | Admin settings form | `src/Form/PVSettingsForm.php` |

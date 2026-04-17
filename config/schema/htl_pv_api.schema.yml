@@ -5,6 +5,9 @@ htl_pv_api.settings:
         api_base_url:
             type: string
             label: "PV API base URL"
+        live_endpoint_path:
+            type: string
+            label: "PV API live endpoint path"
         poll_interval:
             type: integer
             label: "Browser poll interval (seconds)"
@@ -29,7 +32,7 @@ htl_pv_api.settings:
             mapping:
                 timestamp_key:
                     type: string
-                    label: "API key for the timestamp field"
+                    label: "API JSON path for the timestamp field"
                 fields:
                     type: mapping
                     label: "Field definitions"
@@ -38,7 +41,7 @@ htl_pv_api.settings:
                             type: mapping
                             label: "PV power field"
                             mapping: &field_def
-                                api_key: { type: string, label: "API JSON key" }
+                                api_key: { type: string, label: "API JSON key or path" }
                                 label: { type: string, label: "Display label" }
                                 unit: { type: string, label: "Display unit" }
                                 scale:

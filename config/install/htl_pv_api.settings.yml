@@ -1,4 +1,5 @@
 api_base_url: "http://mock-api:4010"
+live_endpoint_path: "/pv/live"
 poll_interval: 15
 cron_enabled: false
 cron_interval: 60
@@ -21,7 +22,7 @@ field_map:
             scale: 0.001
             enabled: true
         house_consumption_w:
-            api_key: "consumption_w"
+            api_key: "house_consumption_w"
             label: "Hausverbrauch"
             unit: "kW"
             scale: 0.001

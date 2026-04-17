@@ -1,16 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\htl_pv_api\Service;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 
 /**
- * Central field mapping between API response keys and internal/UI names.
+ * Central field mapping between API response paths and internal/UI names.
  *
  * This is the single place to change when the production API delivers
  * different field names, labels, units, or scaling factors.
  *
- * Configure at: /admin/config/htl/pv-api (Feld-Mapping section).
+ * Configure at: /admin/config/htl/pv-api (JSON field mapping section).
  */
 class PVFieldMap
 {
@@ -44,7 +46,7 @@ class PVFieldMap
                 "enabled" => true,
             ],
             "house_consumption_w" => [
-                "api_key" => "consumption_w",
+                "api_key" => "house_consumption_w",
                 "label" => "Hausverbrauch",
                 "unit" => "kW",
                 "scale" => 0.001,
@@ -65,8 +67,7 @@ class PVFieldMap
     public function __construct(ConfigFactoryInterface $config_factory)
     {
         $saved =
-            $config_factory->get("htl_pv_api.settings")->get("field_map") ??
-            [];
+            $config_factory->get("htl_pv_api.settings")->get("field_map") ?? [];
         $this->map = [
             "timestamp_key" =>
                 $saved["timestamp_key"] ?? self::DEFAULTS["timestamp_key"],
@@ -80,13 +81,13 @@ class PVFieldMap
         }
     }
 
-    /** The API JSON key that holds the sample timestamp. */
+    /** The API JSON key or dot path that holds the sample timestamp. */
     public function getTimestampKey(): string
     {
         return $this->map["timestamp_key"];
     }
 
-    /** The JSON key to read this field from the API response. */
+    /** The JSON key or dot path to read this field from the API response. */
     public function getApiKey(string $field): string
     {
         return $this->map["fields"][$field]["api_key"] ?? $field;
@@ -133,10 +134,49 @@ class PVFieldMap
                 $result[$field] = null;
                 continue;
             }
-            $key = $this->getApiKey($field);
-            $result[$field] = isset($raw[$key]) ? (float) $raw[$key] : null;
+            $value = $this->extractValue($raw, $this->getApiKey($field));
+            $result[$field] = is_numeric($value) ? (float) $value : null;
         }
         return $result;
+    }
+
+    /**
+     * Extract a scalar value from a nested JSON structure using dot notation.
+     *
+     * Examples:
+     * - timestamp
+     * - data.live.pv_power_w
+     * - results[0].power.value
+     */
+    public function extractValue(array $raw, string $path): mixed
+    {
+        $segments = $this->getPathSegments($path);
+        if ($segments === []) {
+            return null;
+        }
+
+        $current = $raw;
+        foreach ($segments as $segment) {
+            if (!is_array($current) || !array_key_exists($segment, $current)) {
+                return null;
+            }
+            $current = $current[$segment];
+        }
+
+        return $current;
+    }
+
+    /**
+     * Returns scalar leaf values from the payload as a flat list of dot paths.
+     *
+     * @return array<int, array{path: string, type: string, value: string}>
+     *   Each row contains a dot path, detected scalar type, and sample value.
+     */
+    public function describePayload(array $payload): array
+    {
+        $rows = [];
+        $this->collectPayloadRows($payload, "", $rows);
+        return $rows;
     }
 
     /**
@@ -157,5 +197,89 @@ class PVFieldMap
             ];
         }
         return $defs;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getPathSegments(string $path): array
+    {
+        $normalized = trim($path);
+        if ($normalized === "") {
+            return [];
+        }
+
+        $normalized =
+            preg_replace("/\[(\d+)\]/", '.$1', $normalized) ?? $normalized;
+        $normalized = trim($normalized, ".");
+
+        return array_values(
+            array_filter(
+                explode(".", $normalized),
+                static fn(string $segment): bool => $segment !== "",
+            ),
+        );
+    }
+
+    /**
+     * @param array<mixed> $value
+     * @param array<int, array{path: string, type: string, value: string}> $rows
+     */
+    private function collectPayloadRows(
+        array $value,
+        string $prefix,
+        array &$rows,
+    ): void {
+        foreach ($value as $key => $item) {
+            $path = $prefix === "" ? (string) $key : $prefix . "." . $key;
+
+            if (is_array($item)) {
+                if ($item === []) {
+                    $rows[] = [
+                        "path" => $path,
+                        "type" => "array",
+                        "value" => "[]",
+                    ];
+                    continue;
+                }
+
+                $this->collectPayloadRows($item, $path, $rows);
+                continue;
+            }
+
+            $rows[] = [
+                "path" => $path,
+                "type" => $this->describeValueType($item),
+                "value" => $this->stringifyValue($item),
+            ];
+        }
+    }
+
+    private function describeValueType(mixed $value): string
+    {
+        return match (true) {
+            is_int($value) => "integer",
+            is_float($value) => "float",
+            is_bool($value) => "boolean",
+            $value === null => "null",
+            default => "string",
+        };
+    }
+
+    private function stringifyValue(mixed $value): string
+    {
+        if ($value === null) {
+            return "null";
+        }
+
+        if (is_bool($value)) {
+            return $value ? "true" : "false";
+        }
+
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        return json_encode($value, JSON_UNESCAPED_SLASHES) ?: "[unprintable]";
     }
 }

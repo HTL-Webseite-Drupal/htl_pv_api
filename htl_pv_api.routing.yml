@@ -1,39 +1,47 @@
 htl_pv_api.settings:
-  path: '/admin/config/htl/pv-api'
-  defaults:
-    _form: '\Drupal\htl_pv_api\Form\PVSettingsForm'
-    _title: 'PV Einstellungen'
-  requirements:
-    _permission: 'administer htl settings'
+    path: "/admin/config/htl/pv-api"
+    defaults:
+        _form: '\Drupal\htl_pv_api\Form\PVSettingsForm'
+        _title: "PV Einstellungen"
+    requirements:
+        _permission: "administer htl settings"
+
+htl_pv_api.inspector:
+    path: "/admin/config/htl/pv-api/inspector"
+    defaults:
+        _controller: '\Drupal\htl_pv_api\Controller\PVInspectorController::overview'
+        _title: "PV API Inspector"
+    requirements:
+        _permission: "administer htl settings"
 
 htl_pv_api.dashboard:
-  path: '/pvoutput/view'
-  defaults:
-    _controller: '\Drupal\htl_pv_api\Controller\PVController::dashboard'
-    _title: 'PV Dashboard'
-  requirements:
-    _access: 'TRUE'
+    path: "/pvoutput/view"
+    defaults:
+        _controller: '\Drupal\htl_pv_api\Controller\PVController::dashboard'
+        _title: "PV Dashboard"
+    requirements:
+        _access: "TRUE"
 
 htl_pv_api.fetch:
-  path: '/pvoutput/fetch'
-  defaults:
-    _controller: '\Drupal\htl_pv_api\Controller\PVController::fetch'
-  methods: [GET]
-  requirements:
-    _access: 'TRUE'
+    path: "/pvoutput/fetch"
+    defaults:
+        _controller: '\Drupal\htl_pv_api\Controller\PVController::fetch'
+    methods: [GET]
+    requirements:
+        _access: "TRUE"
 
 htl_pv_api.chart_data:
-  path: '/pvoutput/chart-data'
-  defaults:
-    _controller: '\Drupal\htl_pv_api\Controller\PVController::chartData'
-  methods: [GET]
-  requirements:
-    _access: 'TRUE'
+    path: "/pvoutput/chart-data"
+    defaults:
+        _controller: '\Drupal\htl_pv_api\Controller\PVController::chartData'
+    methods: [GET]
+    requirements:
+        _access: "TRUE"
 
 htl_pv_api.cron:
-  path: '/pvoutput/cron/{key}'
-  defaults:
-    _controller: '\Drupal\htl_pv_api\Controller\PVController::cron'
-  methods: [GET]
-  requirements:
-    _access: 'TRUE'
+    path: "/pvoutput/cron/{key}"
+    defaults:
+        _controller: '\Drupal\htl_pv_api\Controller\PVController::cron'
+    methods: [GET]
+    requirements:
+        _access: "TRUE"

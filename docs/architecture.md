@@ -96,6 +96,7 @@ timestamp is safe (idempotent).
 | `/pvoutput/chart-data` | GET | `PVController::chartData` | public |
 | `/pvoutput/cron/{key}` | GET | `PVController::cron` | key in URL |
 | `/admin/config/htl/pv-api` | GET/POST | `PVSettingsForm` | administer htl settings |
+| `/admin/config/htl/pv-api/inspector` | GET | `PVInspectorController::overview` | administer htl settings |
 
 ---
 
@@ -154,6 +155,7 @@ All persistent settings live in one config object. Key structure:
 
 ```yaml
 api_base_url: "http://mock-api:4010"
+live_endpoint_path: "/pv/live"
 poll_interval: 15
 cron_enabled: false
 cron_interval: 60
@@ -172,3 +174,6 @@ field_map:
 Defaults are defined in two places:
 - `config/install/htl_pv_api.settings.yml` — used on first install
 - `PVFieldMap::DEFAULTS` — hard-coded PHP fallback for when no config has been saved
+
+The mapping supports dot notation and array indexes, so a production payload can be
+repointed without code changes in many cases.
