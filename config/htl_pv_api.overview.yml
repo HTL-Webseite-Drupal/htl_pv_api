@@ -1,0 +1,202 @@
+module:
+  name: "HTL PV API"
+  machine_name: "htl_pv_api"
+  config_name: "htl_pv_api.settings"
+  package: "HTL"
+  depends_on:
+    - "htl_core"
+
+admin:
+  settings_route: "htl_pv_api.settings"
+  settings_path: "/admin/config/htl/pv-api"
+  inspector_route: "htl_pv_api.inspector"
+  inspector_path: "/admin/config/htl/pv-api/inspector"
+  menu_parent: "htl_core.admin"
+  permission: "administer htl settings"
+
+purpose:
+  summary: "Fetches live PV data from an external API, stores samples locally, and exposes a dashboard plus live block."
+  migration_strategy:
+    - "Base URL and live endpoint path are configurable."
+    - "JSON field mapping supports simple keys, nested dot paths, and array indexes."
+    - "PV API Inspector shows the raw live payload and all detected scalar paths."
+    - "Most API JSON shape changes can be handled in configuration without PHP changes."
+
+settings_sections:
+  connection:
+    title: "API connection"
+    settings:
+      api_base_url:
+        label: "API Base URL"
+        type: "string"
+        default: "http://mock-api:4010"
+        required: true
+        description: "Base URL of the PV API."
+      live_endpoint_path:
+        label: "Live endpoint path"
+        type: "string"
+        default: "/pv/live"
+        required: true
+        description: "Relative path used for the live request."
+        examples:
+          - "/pv/live"
+          - "/solar/realtime"
+          - "/api/v1/inverter/current"
+
+  mapping:
+    title: "JSON field mapping"
+    settings:
+      field_map.timestamp_key:
+        label: "Timestamp path"
+        type: "string"
+        default: "timestamp"
+        description: "JSON key or nested path for the sample timestamp."
+        examples:
+          - "timestamp"
+          - "data.live.time"
+          - "results[0].measured_at"
+      field_map.fields.power_w:
+        label: "PV generation mapping"
+        default:
+          api_key: "pv_power_w"
+          label: "PV-Erzeugung"
+          unit: "kW"
+          scale: 0.001
+          enabled: true
+      field_map.fields.grid_power_w:
+        label: "Grid power mapping"
+        default:
+          api_key: "grid_power_w"
+          label: "Netzleistung"
+          unit: "kW"
+          scale: 0.001
+          enabled: true
+      field_map.fields.house_consumption_w:
+        label: "House consumption mapping"
+        default:
+          api_key: "house_consumption_w"
+          label: "Hausverbrauch"
+          unit: "kW"
+          scale: 0.001
+          enabled: true
+      field_map.fields.energy_wh_total:
+        label: "Total energy mapping"
+        default:
+          api_key: "energy_wh_total"
+          label: "Energie gesamt"
+          unit: "kWh"
+          scale: 0.001
+          enabled: false
+    shared_field_properties:
+      api_key:
+        type: "string"
+        description: "JSON key or nested path for the raw API value."
+      label:
+        type: "string"
+        description: "Label shown in dashboard and block output."
+      unit:
+        type: "string"
+        description: "Display unit, e.g. kW or kWh."
+      scale:
+        type: "float"
+        description: "Raw API value multiplied by this factor for display."
+      enabled:
+        type: "boolean"
+        description: "If false, the field is ignored and not stored."
+    supported_path_syntax:
+      - "timestamp"
+      - "data.live.power"
+      - "results[0].value"
+
+  scheduling:
+    title: "Data collection"
+    settings:
+      cron_enabled:
+        label: "Automatic data collection"
+        type: "boolean"
+        default: false
+        description: "Enables cron-based background fetching."
+      cron_interval:
+        label: "Cron interval"
+        type: "integer"
+        default: 60
+        unit: "seconds"
+        description: "Minimum seconds between cron fetches."
+      poll_interval:
+        label: "Browser polling interval"
+        type: "integer"
+        default: 15
+        unit: "seconds"
+        description: "Client-side refresh interval for live dashboard updates."
+      data_retention_days:
+        label: "Data retention"
+        type: "integer"
+        default: 30
+        unit: "days"
+        description: "Samples older than this are deleted during cron. 0 keeps everything."
+
+  display:
+    title: "Display"
+    settings:
+      max_power_w:
+        label: "Maximum PV power"
+        type: "integer"
+        default: 10000
+        unit: "W"
+        description: "Gauge is full when power_w reaches this value."
+      chart_interval_minutes:
+        label: "Chart interval"
+        type: "integer"
+        default: 15
+        unit: "minutes"
+        description: "Aggregation interval for day chart buckets."
+
+  styling:
+    title: "Extra CSS classes"
+    settings:
+      css_card_bg:
+        label: "Card background class"
+        type: "string"
+        default: ""
+      css_gauge_arc:
+        label: "Gauge arc class"
+        type: "string"
+        default: ""
+      css_gauge_label:
+        label: "Gauge label class"
+        type: "string"
+        default: ""
+      css_value_number:
+        label: "Value number class"
+        type: "string"
+        default: ""
+      css_value_unit:
+        label: "Value unit class"
+        type: "string"
+        default: ""
+
+runtime:
+  live_fetch:
+    service: "htl_pv_api.client"
+    method: "fetchLive()"
+    raw_payload_method: "fetchLivePayload()"
+  mapping_service:
+    service: "htl_pv_api.field_map"
+    class: "Drupal\\htl_pv_api\\Service\\PVFieldMap"
+  inspector:
+    controller: "Drupal\\htl_pv_api\\Controller\\PVInspectorController::overview"
+    output:
+      - "Current mapping preview"
+      - "Detected scalar JSON paths"
+      - "Raw JSON payload"
+
+migration_workflow:
+  recommended_steps:
+    - "Set API Base URL to the production endpoint."
+    - "Set Live endpoint path if the API does not use /pv/live."
+    - "Open PV API Inspector and inspect the live payload."
+    - "Copy the detected JSON paths into the field mapping settings."
+    - "Adjust scale values if the API returns W, kW, Wh, or kWh differently."
+    - "Disable fields that the real inverter does not provide."
+    - "Use the manual fetch button to confirm data arrives correctly."
+  note: "Only larger API differences such as authentication, multi-request aggregation, or nontrivial transformations should require code changes."
