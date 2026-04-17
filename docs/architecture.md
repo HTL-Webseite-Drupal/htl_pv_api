@@ -95,7 +95,7 @@ timestamp is safe (idempotent).
 | `/pvoutput/fetch` | GET | `PVController::fetch` | public |
 | `/pvoutput/chart-data` | GET | `PVController::chartData` | public |
 | `/pvoutput/cron/{key}` | GET | `PVController::cron` | key in URL |
-| `/admin/config/system/htl-test-api` | GET/POST | `PVSettingsForm` | administer site configuration |
+| `/admin/config/htl/pv-api` | GET/POST | `PVSettingsForm` | administer htl settings |
 
 ---
 

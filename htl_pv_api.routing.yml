@@ -1,10 +1,10 @@
 htl_pv_api.settings:
-  path: '/admin/config/system/htl-pv-api'
+  path: '/admin/config/htl/pv-api'
   defaults:
     _form: '\Drupal\htl_pv_api\Form\PVSettingsForm'
     _title: 'PV Einstellungen'
   requirements:
-    _permission: 'administer site configuration'
+    _permission: 'administer htl settings'
 
 htl_pv_api.dashboard:
   path: '/pvoutput/view'

@@ -9,8 +9,8 @@ photovoltaic inverter API (Fronius, SMA, Huawei, custom, etc.).
 
 ### Via the Admin UI (recommended)
 
-1. Go to **Admin → Configuration → System → HTL PV Settings**
-   (`/admin/config/system/htl-test-api`)
+1. Go to **Admin → Configuration → HTL → PV API**
+   (`/admin/config/htl/pv-api`)
 2. Change **API Base URL** to your real endpoint, e.g. `http://192.168.1.10/api`
 3. Click **Save**
 
@@ -36,7 +36,7 @@ nothing else in the codebase needs to be touched.
 
 ### Where to configure
 
-**Admin → Configuration → System → HTL PV Settings → Feld-Mapping section**
+**Admin → Configuration → HTL → PV API → Feld-Mapping section**
 
 ### What each setting does
 

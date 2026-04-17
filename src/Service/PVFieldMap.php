@@ -10,7 +10,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
  * This is the single place to change when the production API delivers
  * different field names, labels, units, or scaling factors.
  *
- * Configure at: /admin/config/system/htl-pv-api (Feld-Mapping section).
+ * Configure at: /admin/config/htl/pv-api (Feld-Mapping section).
  */
 class PVFieldMap
 {

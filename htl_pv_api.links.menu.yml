@@ -1,7 +1,6 @@
 htl_pv_api.settings:
-  title: 'HTL PV API'
+  title: 'PV API'
   description: 'PV-Datensammlung konfigurieren'
   route_name: htl_pv_api.settings
-  parent: system.admin_config_system
-  menu_name: admin
-  weight: 100
+  parent: htl_core.admin
+  weight: 10

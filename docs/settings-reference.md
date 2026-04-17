@@ -1,7 +1,7 @@
 # Settings Reference
 
-All settings are managed at **Admin → Configuration → System → HTL PV Settings**
-(`/admin/config/system/htl-test-api`).
+All settings are managed at **Admin → Configuration → HTL → PV API**
+(`/admin/config/htl/pv-api`).
 
 They are stored in the Drupal config object `htl_pv_api.settings`.
 

@@ -34,8 +34,8 @@ Or enable via **Admin -> Extend**.
 
 ## Configuration
 
-All settings live at **Admin -> Configuration -> System -> HTL PV Settings**
-(`/admin/config/system/htl-test-api`).
+All settings live at **Admin -> Configuration -> HTL -> PV API**
+(`/admin/config/htl/pv-api`).
 
 | Setting | Description |
 |---|---|
