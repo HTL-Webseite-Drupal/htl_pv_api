@@ -1,3 +1,11 @@
+htl_pv_api.overview:
+    path: "/admin/config/htl/pv-api/overview"
+    defaults:
+        _controller: '\Drupal\htl_pv_api\Controller\PVOverviewController::overview'
+        _title: "PV API"
+    requirements:
+        _permission: "administer htl settings"
+
 htl_pv_api.settings:
     path: "/admin/config/htl/pv-api"
     defaults:
