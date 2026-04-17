@@ -4,7 +4,7 @@ htl_pv_api.overview:
         _controller: '\Drupal\htl_pv_api\Controller\PVOverviewController::overview'
         _title: "PV API"
     requirements:
-        _permission: "administer htl settings"
+        _permission: "Administrator htl settings"
 
 htl_pv_api.settings:
     path: "/admin/config/htl/pv-api"
@@ -12,7 +12,7 @@ htl_pv_api.settings:
         _form: '\Drupal\htl_pv_api\Form\PVSettingsForm'
         _title: "PV Einstellungen"
     requirements:
-        _permission: "administer htl settings"
+        _permission: "Administrator htl settings"
 
 htl_pv_api.inspector:
     path: "/admin/config/htl/pv-api/inspector"
@@ -20,7 +20,7 @@ htl_pv_api.inspector:
         _controller: '\Drupal\htl_pv_api\Controller\PVInspectorController::overview'
         _title: "PV API Inspector"
     requirements:
-        _permission: "administer htl settings"
+        _permission: "Administrator htl settings"
 
 htl_pv_api.dashboard:
     path: "/pvoutput/view"

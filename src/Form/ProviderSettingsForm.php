@@ -93,7 +93,7 @@ class ProviderSettingsForm extends HtlSettingsFormBase
             ),
             "#default_value" => (bool) ($config->get("cron_enabled") ?? true),
             "#description" => $this->t(
-                "Wenn aktiv, werden PV-Samples beim Cron-Lauf automatisch vom Provider abgerufen und als Inhalte gespeichert.",
+                "Wenn aktiv, werden PV-Samples beim Cron-Lauf automatisch vom Provider abgerufen und als Inhalte gespeichert. Auf dem Server muss zusaetzlich ein echter Cronjob eingerichtet werden, z. B. mit crontab -e und dem Eintrag * * * * * curl -sf https://example.com/pvoutput/cron/IHR_CRON_KEY. Den aktuellen Schluessel erhalten Sie mit drush state:get htl_pv_api.cron_key.",
             ),
         ];
 

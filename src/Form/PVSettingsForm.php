@@ -212,6 +212,9 @@ class PVSettingsForm extends HtlSettingsFormBase
             "#type" => "checkbox",
             "#title" => $this->t("Automatische Datensammlung (Cron)"),
             "#default_value" => (bool) ($cfg->get("cron_enabled") ?? false),
+            "#description" => $this->t(
+                "Aktiviert Abrufe per Drupal-Cron und per geschuetztem Modul-Endpunkt. Auf dem Server muss zusaetzlich ein echter Cronjob eingerichtet werden, z. B. mit crontab -e und dem Eintrag * * * * * curl -sf https://example.com/pvoutput/cron/IHR_CRON_KEY. Den aktuellen Schluessel erhalten Sie mit drush state:get htl_pv_api.cron_key.",
+            ),
         ];
         $form["scheduling"]["cron_interval"] = [
             "#type" => "number",

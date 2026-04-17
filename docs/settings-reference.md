@@ -64,6 +64,18 @@ Set it to your inverter's peak output (e.g. 9000 for a 9 kW system).
 Master switch for automatic data collection. When off, neither Drupal cron nor the
 dedicated HTTP cron endpoint will fetch new data (they return early immediately).
 
+On the server, also create a real cron entry, for example via `crontab -e`:
+
+```bash
+* * * * * curl -sf https://example.com/pvoutput/cron/YOUR_CRON_KEY
+```
+
+Get the key with:
+
+```bash
+drush state:get htl_pv_api.cron_key
+```
+
 ---
 
 ### Cron-Intervall
